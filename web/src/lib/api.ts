@@ -1,4 +1,5 @@
 import type { DocJson, DocSummary } from "./types";
+import { docToHtml, docToMarkdown } from "./export";
 
 const API = "";
 
@@ -49,16 +50,26 @@ export const api = {
       body: JSON.stringify({ markdown }),
     }),
 
-  exportDoc: async (doc: DocJson, format: "markdown" | "html" | "json") => {
-    const res = await fetch(`${API}/api/export`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ doc, format }),
-    });
-    if (!res.ok) throw new Error(`Export failed (${res.status})`);
-    const blob = await res.blob();
+  exportDoc: async (doc: DocJson, format: "markdown" | "html" | "json"): Promise<"server" | "local"> => {
     const ext = format === "markdown" ? "md" : format;
-    downloadBlob(blob, `${doc.title || "Untitled"}.${ext}`);
+    try {
+      const res = await fetch(`${API}/api/export`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ doc, format }),
+      });
+      if (!res.ok) throw new Error(`Export failed (${res.status})`);
+      const blob = await res.blob();
+      downloadBlob(blob, `${doc.title || "Untitled"}.${ext}`);
+      return "server";
+    } catch {
+      const text =
+        format === "json" ? JSON.stringify(doc, null, 2) : format === "html" ? docToHtml(doc) : docToMarkdown(doc);
+      const mime =
+        format === "json" ? "application/json" : format === "html" ? "text/html" : "text/markdown";
+      downloadBlob(new Blob([text], { type: mime }), `${doc.title || "Untitled"}.${ext}`);
+      return "local";
+    }
   },
 
   uploadMedia: async (file: File): Promise<string> => {

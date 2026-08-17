@@ -347,7 +347,7 @@ export function App() {
       if (!currentDoc) return;
       api
         .exportDoc(currentDoc.doc, format)
-        .then(() => toast("success", `Exported as ${format.toUpperCase()}`))
+        .then((via) => toast("success", `Exported as ${format.toUpperCase()}${via === "local" ? " (offline)" : ""}`))
         .catch((err: unknown) => toast("error", `Export failed: ${err instanceof Error ? err.message : "unknown error"}`));
     },
     [toast]
