@@ -2,7 +2,12 @@
   "name": "edituh-desktop",
   "version": "2.0.0",
   "description": "Edituh - an elegant documentation editor for the desktop",
-  "author": "Edituh",
+  "homepage": "https://github.com/kaiyad/edituh",
+  "author": {
+    "name": "Edituh",
+    "email": "kailashyadav1377@gmail.com"
+  },
+  "desktopName": "edituh",
   "license": "MIT",
   "main": "main.js",
   "scripts": {
@@ -37,6 +42,7 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
       "target": [
         "dmg",
         "zip"
@@ -44,12 +50,16 @@
       "artifactName": "Edituh-${version}-${arch}.${ext}"
     },
     "win": {
+      "icon": "build/icon.png",
       "target": [
         "nsis"
       ],
       "artifactName": "Edituh-Setup-${version}-${arch}.${ext}"
     },
     "linux": {
+      "icon": "build/icon.png",
+      "maintainer": "Edituh <kailashyadav1377@gmail.com>",
+      "syncDesktopName": true,
       "target": [
         "AppImage",
         "deb"
