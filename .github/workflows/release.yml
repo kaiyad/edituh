@@ -37,9 +37,6 @@ jobs:
 
       - uses: astral-sh/setup-uv@v5
 
-      - name: Enable npm install scripts (npm 11 default blocks them)
-        run: npm config set allow-scripts true
-
       - name: Build web app
         working-directory: web
         run: npm ci && npm run build
