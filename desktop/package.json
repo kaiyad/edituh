@@ -1,0 +1,69 @@
+{
+  "name": "edituh-desktop",
+  "version": "2.0.0",
+  "description": "Edituh - an elegant documentation editor for the desktop",
+  "author": "Edituh",
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "dev": "EDITUH_DEV=1 electron .",
+    "build:web": "npm --prefix ../web run build",
+    "build:server": "uv run --project .. pyinstaller --onefile --name edituh-server --paths .. --distpath server-bin ../server.py",
+    "build:app": "electron-builder --publish never",
+    "build": "npm run build:web && npm run build:server && npm run build:app",
+    "build:mac": "npm run build:web && npm run build:server && electron-builder --mac --publish never",
+    "build:win": "npm run build:web && npm run build:server && electron-builder --win --publish never",
+    "build:linux": "npm run build:web && npm run build:server && electron-builder --linux --publish never"
+  },
+  "build": {
+    "appId": "com.edituh.app",
+    "productName": "Edituh",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js"
+    ],
+    "extraResources": [
+      {
+        "from": "../web/dist",
+        "to": "dist"
+      },
+      {
+        "from": "server-bin",
+        "to": "server"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "artifactName": "Edituh-${version}-${arch}.${ext}"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "Edituh-Setup-${version}-${arch}.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Office",
+      "artifactName": "Edituh-${version}-${arch}.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "^37.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "allowScripts": {
+    "electron@37.10.3": true,
+    "electron-winstaller@5.4.0": true
+  }
+}

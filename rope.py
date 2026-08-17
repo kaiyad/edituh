@@ -1,92 +1,153 @@
-# Rope data structure implementation in Python
+MAX_LEAF_LENGTH = 2048
+
 
 class RopeNode:
-	def __init__(self, left=None, right=None, value: str="", length: int=0):
-		self.left = left
-		self.right = right
-		self.value = value
-		self.length = length
+    __slots__ = ("left", "right", "value", "length", "depth", "weight")
 
+    def __init__(self, left=None, right=None, value=None):
+        if value is not None:
+            self.left = None
+            self.right = None
+            self.value = value
+            self.length = len(value)
+            self.weight = len(value)
+            self.depth = 1
+        else:
+            self.left = left
+            self.right = right
+            self.value = None
+            self.length = (len(left) if left is not None else 0) + (len(right) if right is not None else 0)
+            self.weight = len(left) if left is not None else 0
+            self.depth = 1 + max(
+                left.depth if left is not None else 0,
+                right.depth if right is not None else 0,
+            )
 
-	def __len__(self) -> int:
-		return self.length
+    def __len__(self):
+        return self.length
 
+    def __bool__(self):
+        return self.length > 0
 
-	def __str__(self) -> str:
-		return self.to_string()
+    def __str__(self):
+        return self.to_string()
 
+    def to_string(self):
+        if self.value is not None:
+            return self.value
+        parts = []
+        stack = [self]
+        while stack:
+            node = stack.pop()
+            if node.value is not None:
+                parts.append(node.value)
+            else:
+                stack.append(node.right)
+                stack.append(node.left)
+        return "".join(parts)
 
-	def to_string(self) -> str:
-		if self.value:
-			return self.value
+    def char_at(self, index):
+        node = self
+        while node.value is None:
+            if index < node.weight:
+                node = node.left
+            else:
+                index -= node.weight
+                node = node.right
+        return node.value[index]
 
-		left_str =  self.left.to_string() if self.left else ""
-		right_str = self.right.to_string() if self.right else ""
+    def substring(self, start, end):
+        start = max(0, min(start, self.length))
+        end = max(start, min(end, self.length))
+        return self.to_string()[start:end]
 
-		return left_str + right_str
+    @staticmethod
+    def empty():
+        return RopeNode(value="")
 
+    @staticmethod
+    def concatenate(left, right):
+        if left is None or len(left) == 0:
+            return right if right is not None else RopeNode.empty()
+        if right is None or len(right) == 0:
+            return left
+        return RopeNode(left=left, right=right)
 
-	def char_at(self, index: int):
-		if self.value:
-			return self.value[index]
+    @staticmethod
+    def create_rope_from_string(value):
+        value = value or ""
+        parts = [value[index : index + MAX_LEAF_LENGTH] for index in range(0, len(value), MAX_LEAF_LENGTH)]
+        return RopeNode._build(parts, 0, len(parts))
 
-		if index < len(self.left):
-			return self.left.char_at(index)
-		else:
-			return self.right.char_at(index - len(self.left))
+    @staticmethod
+    def split(rope, index):
+        if rope is None or len(rope) == 0:
+            return RopeNode.empty(), RopeNode.empty()
+        index = max(0, min(index, rope.length))
+        if index == 0:
+            return RopeNode.empty(), rope
+        if index >= rope.length:
+            return rope, RopeNode.empty()
+        if rope.value is not None:
+            return RopeNode(value=rope.value[:index]), RopeNode(value=rope.value[index:])
+        if index < rope.weight:
+            left, right = RopeNode.split(rope.left, index)
+            return left, RopeNode(left=right, right=rope.right)
+        left, right = RopeNode.split(rope.right, index - rope.weight)
+        return RopeNode(left=rope.left, right=left), right
 
+    @staticmethod
+    def insert(rope, index, value):
+        return RopeNode.replace(rope, index, index, value)
 
-	def substring(self, start: int, end: int) -> str:
-		if self.value:
-			return self.value[start:end]
+    @staticmethod
+    def delete(rope, start, end):
+        return RopeNode.replace(rope, start, end, "")
 
-		if end <= len(self.left):
-			return self.left.substring(start, end)
-		elif start >= len(self.left):
-			return self.right.substring(start - len(self.left), end - len(self.left))
-		else:
-			left_substring = self.left.substring(start, len(self.left))
-			right_substring = self.right.substring(0, end - len(self.left))
-			return left_substring + right_substring
+    @staticmethod
+    def replace(rope, start, end, value):
+        if rope is None or len(rope) == 0:
+            return RopeNode.create_rope_from_string(value)
+        start = max(0, min(start, rope.length))
+        end = max(start, min(end, rope.length))
+        left, rest = RopeNode.split(rope, start)
+        _, right = RopeNode.split(rest, end - start)
+        node = RopeNode.concatenate(left, right)
+        if value:
+            node = RopeNode.concatenate(RopeNode.concatenate(left, RopeNode.create_rope_from_string(value)), right)
+        return RopeNode.rebalance(node)
 
+    @staticmethod
+    def _collect(node, parts):
+        if node is None:
+            return
+        if node.value is not None:
+            if node.value:
+                for index in range(0, len(node.value), MAX_LEAF_LENGTH):
+                    parts.append(node.value[index : index + MAX_LEAF_LENGTH])
+            return
+        RopeNode._collect(node.left, parts)
+        RopeNode._collect(node.right, parts)
 
-	def concatenate(rope1, rope2):
-		new_length = len(rope1) + len(rope2)
-		return RopeNode(left=rope1, right=rope2, length=new_length)
+    @staticmethod
+    def _build(parts, low, high):
+        if low >= high:
+            return RopeNode.empty()
+        if high - low == 1:
+            return RopeNode(value=parts[low])
+        middle = (low + high) // 2
+        return RopeNode(
+            left=RopeNode._build(parts, low, middle),
+            right=RopeNode._build(parts, middle, high),
+        )
 
-
-	def split(rope, index: int) -> tuple:
-		if not rope or index <= 0:
-			return RopeNode(value="", length=0), rope
-		if index >= rope.length:
-			return rope, RopeNode(value="", length=0)
-
-		if rope.value:
-			left_value = rope.value[:index]
-			right_value = rope.value[index:]
-			left_node = RopeNode(value=left_value, length=len(left_value))
-			right_node = RopeNode(value=right_value, length=len(right_value))
-			return left_node, right_node
-
-		if index < len(rope.left):
-			left_split, right_split = RopeNode.split(rope.left, index)
-			new_right = RopeNode.concatenate(right_split, rope.right)
-			return left_split, new_right
-		else:
-			left_split, right_split = RopeNode.split(rope.right, index - len(rope.left))
-			new_left = RopeNode.concatenate(rope.left, left_split)
-			return new_left, right_split
-
-
-	def insert(rope, index: int, value: str):
-		left, right = RopeNode.split(rope, index)
-		new_node = RopeNode(value=value, length=len(value))
-		return RopeNode.concatenate(RopeNode.concatenate(left, new_node), right)
-
-	def delete(rope, start: int, end: int):
-		left, right = RopeNode.split(rope, start)
-		_, right = RopeNode.split(right, end - start)
-		return RopeNode.concatenate(left, right)
-
-	def create_rope_from_string(s: str):
-		return RopeNode(value=s, length=len(s))
+    @staticmethod
+    def rebalance(node):
+        if node is None or node.value is not None or node.length == 0:
+            return node
+        limit = 2 * max(1, node.length.bit_length()) + 2
+        if node.depth <= limit:
+            return node
+        parts = []
+        RopeNode._collect(node, parts)
+        return RopeNode._build(parts, 0, len(parts))

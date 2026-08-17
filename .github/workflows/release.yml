@@ -1,0 +1,63 @@
+name: Release desktop app
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS (Apple Silicon)
+            os: macos-latest
+          - name: macOS (Intel)
+            os: macos-13
+          - name: Windows
+            os: windows-latest
+          - name: Linux
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            desktop/package-lock.json
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Enable npm install scripts (npm 11 default blocks them)
+        run: npm config set allow-scripts true
+
+      - name: Build web app
+        working-directory: web
+        run: npm ci && npm run build
+
+      - name: Build server binary
+        working-directory: desktop
+        run: npm ci && uv run --project .. pyinstaller --onefile --name edituh-server --paths .. --distpath server-bin ../server.py
+
+      - name: Package desktop app
+        working-directory: desktop
+        run: npx electron-builder --publish never
+
+      - name: Attach artifacts to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            desktop/release/*.dmg
+            desktop/release/*.zip
+            desktop/release/*.exe
+            desktop/release/*.AppImage
+            desktop/release/*.deb
