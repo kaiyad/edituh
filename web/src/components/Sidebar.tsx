@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+  CalendarIcon,
   CopyIcon,
   DownloadIcon,
   InstallIcon,
@@ -30,6 +31,7 @@ interface Props {
   collapsed: boolean;
   onSelect: (id: string) => void;
   onNew: () => void;
+  onToday: () => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
   onTheme: (theme: ThemeName) => void;
@@ -95,6 +97,12 @@ export function Sidebar(props: Props) {
         <PlusIcon size={16} />
         <span>New page</span>
         <kbd>⌘N</kbd>
+      </button>
+
+      <button className="new-page-btn today-btn" onClick={props.onToday}>
+        <CalendarIcon size={15} />
+        <span>Today's note</span>
+        <kbd>⌘⇧N</kbd>
       </button>
 
       <div className="sidebar-search">

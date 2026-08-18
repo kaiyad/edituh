@@ -1,12 +1,15 @@
 import { useState } from "react";
 import {
+  BacklinkIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   CommandIcon,
   DownloadIcon,
   FileTextIcon,
+  GraphIcon,
   MoreIcon,
   OutlineIcon,
+  PresentIcon,
   SparkIcon,
   UploadIcon,
 } from "../lib/icons";
@@ -17,11 +20,16 @@ interface Props {
   saving: boolean;
   online: boolean;
   outlineOpen: boolean;
+  linksOpen: boolean;
+  canPresent: boolean;
   onTitle: (title: string) => void;
   onToggleOutline: () => void;
-  onExport: (format: "markdown" | "html" | "json") => void;
+  onToggleLinks: () => void;
+  onExport: (format: "markdown" | "html" | "json" | "deck") => void;
   onImportClick: () => void;
   onCommandMenu: () => void;
+  onPresent: () => void;
+  onGraph: () => void;
 }
 
 export function Header(props: Props) {
@@ -29,7 +37,7 @@ export function Header(props: Props) {
 
   const status = props.online ? (props.saving ? "Saving…" : props.dirty ? "Unsaved changes" : "Saved") : "Offline mode";
 
-  const exportDoc = (format: "markdown" | "html" | "json") => {
+  const exportDoc = (format: "markdown" | "html" | "json" | "deck") => {
     setMenuOpen(null);
     props.onExport(format);
   };
@@ -59,12 +67,28 @@ export function Header(props: Props) {
         </span>
 
         <button
+          className={`icon-btn ${props.linksOpen ? "active" : ""}`}
+          onClick={props.onToggleLinks}
+          title="Backlinks & outgoing links"
+        >
+          <BacklinkIcon size={16} />
+        </button>
+        <button
           className={`icon-btn ${props.outlineOpen ? "active" : ""}`}
           onClick={props.onToggleOutline}
           title="Toggle outline"
         >
           <OutlineIcon size={16} />
         </button>
+        <button className="icon-btn" onClick={props.onGraph} title="Knowledge graph">
+          <GraphIcon size={16} />
+        </button>
+        {props.canPresent && (
+          <button className="btn btn-ghost" onClick={props.onPresent} title="Present this page">
+            <PresentIcon size={15} />
+            <span>Present</span>
+          </button>
+        )}
 
         <div className="menu-wrap">
           <button
@@ -90,6 +114,11 @@ export function Header(props: Props) {
                 <button className="menu-item" onClick={() => exportDoc("html")}>
                   <SparkIcon size={15} />
                   <span>HTML document</span>
+                  <kbd>.html</kbd>
+                </button>
+                <button className="menu-item" onClick={() => exportDoc("deck")}>
+                  <PresentIcon size={15} />
+                  <span>Presentation deck</span>
                   <kbd>.html</kbd>
                 </button>
                 <button className="menu-item" onClick={() => exportDoc("json")}>
@@ -130,6 +159,38 @@ export function Header(props: Props) {
                   <OutlineIcon size={15} />
                   <span>{props.outlineOpen ? "Hide outline" : "Show outline"}</span>
                 </button>
+                <button
+                  className="menu-item"
+                  onClick={() => {
+                    setMenuOpen(null);
+                    props.onToggleLinks();
+                  }}
+                >
+                  <BacklinkIcon size={15} />
+                  <span>{props.linksOpen ? "Hide backlinks" : "Show backlinks"}</span>
+                </button>
+                <button
+                  className="menu-item"
+                  onClick={() => {
+                    setMenuOpen(null);
+                    props.onGraph();
+                  }}
+                >
+                  <GraphIcon size={15} />
+                  <span>Knowledge graph</span>
+                </button>
+                {props.canPresent && (
+                  <button
+                    className="menu-item"
+                    onClick={() => {
+                      setMenuOpen(null);
+                      props.onPresent();
+                    }}
+                  >
+                    <PresentIcon size={15} />
+                    <span>Present page</span>
+                  </button>
+                )}
               </div>
             </>
           )}

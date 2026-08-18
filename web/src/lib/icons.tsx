@@ -169,3 +169,27 @@ export const ExternalIcon = (p: IconProps) => (
 export const FileTextIcon = (p: IconProps) => (
   <Svg {...p}><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" /><path d="M14 3v6h6M9 13h6M9 17h6" /></Svg>
 );
+export const SigmaIcon = (p: IconProps) => (
+  <Svg {...p}><path d="M18 5H6l6 7-6 7h12" /></Svg>
+);
+export const MermaidIcon = (p: IconProps) => (
+  <Svg {...p}><rect x="3" y="3" width="8" height="6" rx="1.5" /><rect x="13" y="15" width="8" height="6" rx="1.5" /><path d="M7 9v3a4 4 0 0 0 4 4h2" /><path d="M17 15v-2" /></Svg>
+);
+export const GraphIcon = (p: IconProps) => (
+  <Svg {...p}><circle cx="5" cy="6" r="2.5" /><circle cx="19" cy="6" r="2.5" /><circle cx="12" cy="18" r="2.5" /><path d="M6.8 7.8 10.8 16m6.4-8.2L13.2 16M7.5 6h9" /></Svg>
+);
+export const PresentIcon = (p: IconProps) => (
+  <Svg {...p}><rect x="3" y="4" width="18" height="13" rx="2" /><path d="M8 21h8M12 17v4" /></Svg>
+);
+export const CaptureIcon = (p: IconProps) => (
+  <Svg {...p}><path d="M12 3v4m0 10v4M3 12h4m10 0h4M5.6 5.6l2.8 2.8m7.2 7.2 2.8 2.8M18.4 5.6l-2.8 2.8m-7.2 7.2-2.8 2.8" /><circle cx="12" cy="12" r="3.2" /></Svg>
+);
+export const CalendarIcon = (p: IconProps) => (
+  <Svg {...p}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4m8-4v4M3 10h18M8 14h3m-3 4h6" /></Svg>
+);
+export const BacklinkIcon = (p: IconProps) => (
+  <Svg {...p}><path d="M9 15 15 9M11 6.5 13 4.5a4.2 4.2 0 0 1 6 6l-2 2M13 17.5l-2 2a4.2 4.2 0 0 1-6-6l2-2" /></Svg>
+);
+export const AttachIcon = (p: IconProps) => (
+  <Svg {...p}><path d="m10.5 20.5a5.5 5.5 0 0 1-7.8-7.8l7-7a4.2 4.2 0 0 1 6 6l-6.5 6.5a2.8 2.8 0 0 1-4-4l6-6" /></Svg>
+);

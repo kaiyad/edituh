@@ -29,6 +29,12 @@ def _inline(text):
     out = re.sub(r"`([^`]+)`", r"<code>\1</code>", out)
     out = re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", lambda m: f'<img src="{_safe_url(m.group(2))}" alt="{m.group(1)}"/>', out)
     out = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", lambda m: f'<a href="{_safe_url(m.group(2))}">{m.group(1)}</a>', out)
+    out = re.sub(
+        r"\[\[([^\]|]+)(?:\|([^\]]+))?\]\]",
+        lambda m: f'<a class="wikilink" href="#/doc/{html_lib.escape(m.group(1).strip())}">{html_lib.escape((m.group(2) or m.group(1)).strip())}</a>',
+        out,
+    )
+    out = re.sub(r"\$[^$\s](?:[^$\n]*[^$\s])?\$", lambda m: f'<span class="math-inline">{m.group(0)}</span>', out)
     return out
 
 
@@ -51,10 +57,14 @@ def render_markdown(source):
                 buffer.append(lines[index])
                 index += 1
             index += 1
-            output.append(
-                f"<pre><code class='language-{html_lib.escape(language or 'text')}'>"
-                f"{html_lib.escape(chr(10).join(buffer))}</code></pre>"
-            )
+            code = html_lib.escape(chr(10).join(buffer))
+            if language.lower() == "mermaid":
+                output.append(f"<pre class='mermaid'>{code}</pre>")
+            else:
+                output.append(
+                    f"<pre><code class='language-{html_lib.escape(language or 'text')}'>"
+                    f"{code}</code></pre>"
+                )
             continue
         match = re.match(r"^(#{1,6})\s+(.*)$", line)
         if match:
@@ -102,6 +112,11 @@ def render_markdown(source):
             output.append("<hr/>")
             index += 1
             continue
+        if stripped.startswith("$$") and stripped.endswith("$$") and len(stripped) > 4:
+            latex = stripped[2:-2].strip()
+            output.append(f'<p class="math-block">$${html_lib.escape(latex)}$$</p>')
+            index += 1
+            continue
         if not stripped:
             index += 1
             continue
@@ -129,13 +144,16 @@ def parse_markdown(source):
                 index += 1
             index += 1
             text = "\n".join(buffer)
+            if language.lower() == "mermaid":
+                doc.add_block("mermaid", {"code": text})
+                continue
             if language.lower() == "json":
                 try:
                     payload = json.loads(text)
                 except Exception:
                     payload = None
                 if isinstance(payload, dict) and payload.get("type") in (
-                    "video", "audio", "chart", "callout", "checklist", "image",
+                    "video", "audio", "chart", "callout", "checklist", "image", "file",
                 ):
                     doc.add_block(payload["type"], payload.get("data") or {})
                     continue
@@ -179,6 +197,10 @@ def parse_markdown(source):
             continue
         if re.match(r"^(\s*[-*_]\s*){3,}$", stripped):
             doc.add_block("divider", {})
+            index += 1
+            continue
+        if stripped.startswith("$$") and stripped.endswith("$$") and len(stripped) > 4:
+            doc.add_block("math", {"latex": stripped[2:-2].strip()})
             index += 1
             continue
         if not stripped:
@@ -435,7 +457,13 @@ class Document:
                 output.append("---")
             elif block.type == "image":
                 output.append(f"![{block.data.get('caption', '')}]({block.data.get('src', '')})")
-            elif block.type in ("video", "audio", "chart"):
+            elif block.type == "math":
+                output.append("$$" + str(block.data.get("latex", "")).strip() + "$$")
+            elif block.type == "mermaid":
+                output.append("```mermaid")
+                output.append(block.data.get("code", ""))
+                output.append("```")
+            elif block.type in ("video", "audio", "chart", "file"):
                 output.append("```json")
                 output.append(json.dumps({"type": block.type, "data": block.data}, ensure_ascii=False))
                 output.append("```")
@@ -448,7 +476,9 @@ class Document:
         head.append(f"<title>{html_lib.escape(title or self.title)}</title>")
         head.append("<style>")
         head.append(_EXPORT_CSS)
-        head.append("</style></head><body><main>")
+        head.append("</style>")
+        head.append(_MATH_CDN)
+        head.append("</head><body><main>")
         head.append(f"<h1 class='doc-title'>{html_lib.escape(title or self.title)}</h1>")
         for block in self.blocks:
             head.append(self._block_html(block))
@@ -516,8 +546,29 @@ class Document:
             svg = chart_svg(kind, labels, series)
             caption = f"<figcaption>{html_lib.escape(data.get('title', ''))}</figcaption>" if data.get("title") else ""
             return f"<figure>{svg}{caption}</figure>"
+        if block_type == "math":
+            return f'<p class="math-block">$${html_lib.escape(data.get("latex", ""))}$$</p>'
+        if block_type == "mermaid":
+            return f'<pre class="mermaid">{html_lib.escape(data.get("code", ""))}</pre>'
+        if block_type == "file":
+            name = html_lib.escape(data.get("name", "attachment"))
+            src = html_lib.escape(data.get("src", ""))
+            return f'<p class="attachment"><a href="{src}">&#128206; {name}</a></p>'
         return ""
 
+
+_MATH_CDN = """
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"/>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script defer>
+  window.addEventListener('load', function () {
+    if (window.renderMathInElement) renderMathInElement(document.body, { delimiters: [{ left: '$$', right: '$$', display: true }, { left: '$', right: '$', display: false }], throwOnError: false });
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, securityLevel: 'loose', theme: 'base' });
+  });
+</script>
+"""
 
 _EXPORT_CSS = """
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; background: #fafbfc; color: #24292f; }
@@ -536,5 +587,10 @@ ul.checklist { list-style: none; padding-left: 4px; }
 figure { margin: 14px 0; }
 figure img, figure video, figure svg { max-width: 100%; border-radius: 8px; }
 figcaption { color: #57606a; font-size: 0.85rem; margin-top: 6px; text-align: center; }
+.math-block { text-align: center; font-size: 1.1rem; }
+.math-inline { font-size: 0.95em; }
+a.wikilink { color: #0969da; text-decoration: none; border-bottom: 1px dashed #0969da; }
+pre.mermaid { background: #ffffff; text-align: center; }
+p.attachment { margin: 6px 0; }
 @media print { body { background: white; } main { max-width: 100%; padding: 0; } }
 """

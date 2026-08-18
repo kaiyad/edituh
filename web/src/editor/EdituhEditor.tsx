@@ -4,7 +4,7 @@ import { getDefaultReactSlashMenuItems, SuggestionMenuController, useCreateBlock
 import { useCallback, useEffect, useRef } from "react";
 import { api } from "../lib/api";
 import { blocksToDoc, docToBlocks } from "../lib/convert";
-import { BulbIcon, ChartIcon } from "../lib/icons";
+import { BulbIcon, ChartIcon, MermaidIcon, SigmaIcon } from "../lib/icons";
 import type { DocJson } from "../lib/types";
 import { schema, type EditorPartialBlock } from "./schema";
 
@@ -56,13 +56,17 @@ export function EdituhEditor({ doc, docId, dark, onContentChange, onReady, onSav
   }, []);
 
   const insertBlock = useCallback(
-    (type: "chart" | "callout") => {
+    (type: "chart" | "callout" | "math" | "mermaid") => {
       const pos = editor.getTextCursorPosition();
       const block = pos.block;
       const newBlock: EditorPartialBlock =
         type === "chart"
           ? { type: "chart", props: { kind: "bar", title: "", labels: "[]", series: "{}" } }
-          : { type: "callout", props: { icon: "💡" }, content: "" };
+          : type === "callout"
+            ? { type: "callout", props: { icon: "💡" }, content: "" }
+            : type === "math"
+              ? { type: "math", props: { latex: "" } }
+              : { type: "mermaid", props: { code: "" } };
       editor.replaceBlocks([block], [newBlock]);
     },
     [editor]
@@ -76,6 +80,22 @@ export function EdituhEditor({ doc, docId, dark, onContentChange, onReady, onSav
       group: "Media",
       icon: <ChartIcon size={18} />,
       onItemClick: () => insertBlock("chart"),
+    },
+    {
+      title: "Math (LaTeX)",
+      subtext: "KaTeX-rendered equations and formulas",
+      aliases: ["math", "equation", "formula", "latex", "katex", "katex", "e=mc2"],
+      group: "Media",
+      icon: <SigmaIcon size={18} />,
+      onItemClick: () => insertBlock("math"),
+    },
+    {
+      title: "Diagram (Mermaid)",
+      subtext: "Flowcharts, sequence and class diagrams",
+      aliases: ["diagram", "mermaid", "flowchart", "sequence", "graph"],
+      group: "Media",
+      icon: <MermaidIcon size={18} />,
+      onItemClick: () => insertBlock("mermaid"),
     },
     {
       title: "Callout",

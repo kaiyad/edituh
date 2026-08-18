@@ -3,7 +3,7 @@ import type { DocJson } from "./types";
 import { uuid } from "./uuid";
 import type { EditorBlock, EditorPartialBlock, Inline, Style } from "../editor/schema";
 
-const TOKEN_RE = /(\*\*[^*]+\*\*|~~[^~]+~~|`[^`]+`|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g;
+const TOKEN_RE = /(\[\[[^\]\n]+\]\]|\$[^$\s](?:[^$\n]*[^$\s])?\$|\*\*[^*]+\*\*|~~[^~]+~~|`[^`]+`|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g;
 
 function parseInline(text: string): PartialInlineContent<Inline, Style> {
   const out: PartialInlineContent<Inline, Style> = [];
@@ -12,7 +12,18 @@ function parseInline(text: string): PartialInlineContent<Inline, Style> {
     const index = match.index ?? 0;
     if (index > last) out.push({ type: "text", text: text.slice(last, index), styles: {} });
     const token = match[0];
-    if (token.startsWith("**") && token.endsWith("**")) {
+    if (token.startsWith("[[") && token.endsWith("]]")) {
+      const inner = token.slice(2, -2);
+      const [target, ...rest] = inner.split("|");
+      const alias = rest.join("|");
+      out.push({
+        type: "wikilink",
+        props: { target: target.trim() },
+        content: [{ type: "text", text: alias.trim() || target.trim(), styles: {} }],
+      });
+    } else if (token.startsWith("$") && token.endsWith("$") && token.length > 2) {
+      out.push({ type: "math", props: { latex: token.slice(1, -1) } });
+    } else if (token.startsWith("**") && token.endsWith("**")) {
       out.push({ type: "text", text: token.slice(2, -2), styles: { bold: true } });
     } else if (token.startsWith("~~") && token.endsWith("~~")) {
       out.push({ type: "text", text: token.slice(2, -2), styles: { strike: true } });
@@ -42,6 +53,7 @@ type AnyInline = {
   type?: string;
   text?: string;
   href?: string;
+  props?: { target?: string; latex?: string };
   content?: unknown;
   styles?: { bold?: boolean; italic?: boolean; code?: boolean; strike?: boolean; link?: string };
 };
@@ -62,6 +74,14 @@ export function inlineToMarkdown(content: unknown): string {
       }
       if (item.type === "link" && typeof item.href === "string") {
         return `[${inlineToMarkdown(item.content)}](${item.href})`;
+      }
+      if (item.type === "wikilink") {
+        const target = item.props?.target ?? "";
+        const alias = inlineToMarkdown(item.content);
+        return alias === target ? `[[${target}]]` : `[[${target}|${alias}]]`;
+      }
+      if (item.type === "math") {
+        return `$${item.props?.latex ?? ""}$`;
       }
       return "";
     })
@@ -179,6 +199,19 @@ export function docToBlocks(doc: DocJson): EditorPartialBlock[] {
             labels: JSON.stringify(data.labels ?? []),
             series: JSON.stringify(data.series ?? {}),
           },
+        });
+        break;
+      case "math":
+        blocks.push({ id: block.id, type: "math", props: { latex: data.latex ?? "" } });
+        break;
+      case "mermaid":
+        blocks.push({ id: block.id, type: "mermaid", props: { code: data.code ?? "" } });
+        break;
+      case "file":
+        blocks.push({
+          id: block.id,
+          type: "file",
+          props: { name: data.name ?? "", url: data.src ?? "", caption: String(data.size ?? 0) },
         });
         break;
     }
@@ -303,9 +336,19 @@ export function blocksToDoc(blocks: EditorBlock[]): DocJson {
       case "file":
         out.push({
           id: bid(block),
-          type: "paragraph",
-          data: { text: `[${String(props.name ?? "file")}](${String(props.url ?? "")})` },
+          type: "file",
+          data: {
+            name: String(props.name ?? ""),
+            src: String(props.url ?? ""),
+            size: Number(props.caption) || 0,
+          },
         });
+        break;
+      case "math":
+        out.push({ id: bid(block), type: "math", data: { latex: String(props.latex ?? "") } });
+        break;
+      case "mermaid":
+        out.push({ id: bid(block), type: "mermaid", data: { code: String(props.code ?? "") } });
         break;
       default:
         out.push({ id: bid(block), type: "paragraph", data: { text: inlineToMarkdown(block.content) } });
@@ -338,6 +381,15 @@ export function countWords(doc: DocJson): number {
         break;
       case "image":
         text = data.caption ?? "";
+        break;
+      case "file":
+        text = data.name ?? "";
+        break;
+      case "math":
+        text = data.latex ?? "";
+        break;
+      case "mermaid":
+        text = data.code ?? "";
         break;
       default:
         text = data.text ?? "";

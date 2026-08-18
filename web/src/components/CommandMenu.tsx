@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  CalendarIcon,
+  CaptureIcon,
   CheckIcon,
   CommandIcon,
   DownloadIcon,
   FileTextIcon,
+  GraphIcon,
   MoonIcon,
   OutlineIcon,
   PaletteIcon,
   PlusIcon,
+  PresentIcon,
   SearchIcon,
   SidebarIcon,
   SparkIcon,
@@ -32,12 +36,18 @@ interface Props {
   docs: { id: string; title: string }[];
   theme: ThemeName;
   activeId: string | null;
+  todayDocId: string | null;
   onNew: () => void;
   onSelectDoc: (id: string) => void;
+  onToday: () => void;
+  onCapture: () => void;
+  onGraph: () => void;
+  onPresent: () => void;
   onTheme: (theme: ThemeName) => void;
-  onExport: (format: "markdown" | "html" | "json") => void;
+  onExport: (format: "markdown" | "html" | "json" | "deck") => void;
   onImport: () => void;
   onToggleOutline: () => void;
+  onToggleLinks: () => void;
   onToggleSidebar: () => void;
   onQuickTheme: () => void;
 }
@@ -65,6 +75,28 @@ export function CommandMenu(props: Props) {
         icon: <PlusIcon size={15} />,
         run: () => {
           props.onNew();
+          props.onClose();
+        },
+      },
+      {
+        id: "today",
+        group: "Create",
+        label: props.todayDocId ? "Open today's note" : "Create today's note",
+        hint: props.todayDocId ? undefined : "⌘⇧N",
+        icon: <CalendarIcon size={15} />,
+        run: () => {
+          props.onToday();
+          props.onClose();
+        },
+      },
+      {
+        id: "capture",
+        group: "Create",
+        label: "Quick capture",
+        hint: "⌘⇧N",
+        icon: <CaptureIcon size={15} />,
+        run: () => {
+          props.onCapture();
           props.onClose();
         },
       },
@@ -99,6 +131,16 @@ export function CommandMenu(props: Props) {
         },
       },
       {
+        id: "export-deck",
+        group: "Export",
+        label: "Export as presentation deck",
+        icon: <PresentIcon size={15} />,
+        run: () => {
+          props.onExport("deck");
+          props.onClose();
+        },
+      },
+      {
         id: "export-json",
         group: "Export",
         label: "Export as JSON",
@@ -109,12 +151,42 @@ export function CommandMenu(props: Props) {
         },
       },
       {
+        id: "present",
+        group: "View",
+        label: "Present current page",
+        icon: <PresentIcon size={15} />,
+        run: () => {
+          props.onPresent();
+          props.onClose();
+        },
+      },
+      {
+        id: "graph",
+        group: "View",
+        label: "Knowledge graph",
+        icon: <GraphIcon size={15} />,
+        run: () => {
+          props.onGraph();
+          props.onClose();
+        },
+      },
+      {
         id: "outline",
         group: "View",
         label: "Toggle document outline",
         icon: <OutlineIcon size={15} />,
         run: () => {
           props.onToggleOutline();
+          props.onClose();
+        },
+      },
+      {
+        id: "links",
+        group: "View",
+        label: "Toggle backlinks panel",
+        icon: <CalendarIcon size={15} />,
+        run: () => {
+          props.onToggleLinks();
           props.onClose();
         },
       },

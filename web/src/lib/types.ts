@@ -12,7 +12,10 @@ export type BlockType =
   | "image"
   | "video"
   | "audio"
-  | "chart";
+  | "chart"
+  | "math"
+  | "mermaid"
+  | "file";
 
 export interface BlockData {
   text?: string;
@@ -28,6 +31,10 @@ export interface BlockData {
   labels?: string[];
   series?: Record<string, number[]>;
   title?: string;
+  latex?: string;
+  code?: string;
+  name?: string;
+  size?: number;
 }
 
 export interface BlockJson {

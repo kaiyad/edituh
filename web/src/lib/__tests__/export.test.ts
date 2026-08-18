@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { docToHtml, docToMarkdown, inlineToHtml } from "../export";
+import { buildSlides, docToDeck, docToHtml, docToMarkdown, inlineToHtml } from "../export";
 import type { DocJson } from "../types";
 
 function doc(blocks: DocJson["blocks"]): DocJson {
@@ -47,6 +47,19 @@ describe("docToMarkdown", () => {
       ])
     );
     expect(md).toContain('```json\n{"type":"chart","data":{"kind":"bar","title":"T","labels":["x"],"series":{"S":[1]}}}\n```');
+  });
+
+  it("serializes math, mermaid and file blocks", () => {
+    const md = docToMarkdown(
+      doc([
+        { id: "a", type: "math", data: { latex: "E = mc^2" } },
+        { id: "b", type: "mermaid", data: { code: "sequenceDiagram\nA->>B: hi" } },
+        { id: "c", type: "file", data: { name: "plan.pdf", src: "media/plan.pdf" } },
+      ])
+    );
+    expect(md).toContain("$$E = mc^2$$");
+    expect(md).toContain("```mermaid\nsequenceDiagram\nA->>B: hi\n```");
+    expect(md).toContain('"type":"file","data":{"name":"plan.pdf"');
   });
 });
 
@@ -105,6 +118,71 @@ describe("docToHtml", () => {
   it("ignores malformed checklist items", () => {
     const html = docToHtml(doc([{ id: "a", type: "checklist", data: { items: [123, "x", null] as never } }]));
     expect(html).toContain("<ul class='checklist'></ul>");
+  });
+
+  it("renders wikilinks as internal anchors and math spans", () => {
+    const html = docToHtml(
+      doc([
+        { id: "a", type: "paragraph", data: { text: "See [[Alpha|the alpha]] and $x^2$" } },
+        { id: "b", type: "math", data: { latex: "E=mc^2" } },
+        { id: "c", type: "mermaid", data: { code: "flowchart TD\nA --> B" } },
+      ])
+    );
+    expect(html).toContain('<a class="wikilink" href="#/doc/Alpha">the alpha</a>');
+    expect(html).toContain('<span class="math-inline">$x^2$</span>');
+    expect(html).toContain('<p class="math-block">$$E=mc^2$$</p>');
+    expect(html).toContain('<pre class="mermaid">flowchart TD\nA --&gt; B</pre>');
+    expect(html).toContain("katex@0.16.11");
+    expect(html).toContain("mermaid@11");
+  });
+});
+
+describe("presentation slides", () => {
+  it("splits slides on top-level headings and collects notes", () => {
+    const { slides } = buildSlides(
+      doc([
+        { id: "a", type: "paragraph", data: { text: "intro" } },
+        { id: "b", type: "heading", data: { level: 1, text: "Part One" } },
+        { id: "c", type: "paragraph", data: { text: "body one" } },
+        { id: "d", type: "callout", data: { icon: "📝", text: "say this slowly" } },
+        { id: "e", type: "heading", data: { level: 1, text: "Part Two" } },
+        { id: "f", type: "heading", data: { level: 2, text: "Sub section" } },
+        { id: "g", type: "paragraph", data: { text: "body two" } },
+      ])
+    );
+    expect(slides.length).toBe(4);
+    expect(slides[0].blocks[0].data.text).toBe("My Doc");
+    expect(slides[1].blocks[0].data.text).toBe("intro");
+    expect(slides[2].blocks[0].data.text).toBe("Part One");
+    expect(slides[2].blocks.some((b) => b.type === "paragraph")).toBe(true);
+    expect(slides[2].notes).toEqual(["say this slowly"]);
+    expect(slides[3].blocks.length).toBe(3);
+  });
+
+  it("uses h2 as slide boundaries when no h1 exists", () => {
+    const { slides } = buildSlides(
+      doc([
+        { id: "a", type: "heading", data: { level: 2, text: "One" } },
+        { id: "b", type: "paragraph", data: { text: "x" } },
+        { id: "c", type: "heading", data: { level: 2, text: "Two" } },
+      ])
+    );
+    expect(slides.length).toBe(3);
+    expect(slides[1].blocks[0].data.text).toBe("One");
+    expect(slides[2].blocks[0].data.text).toBe("Two");
+  });
+
+  it("exports a standalone deck with navigation", () => {
+    const deck = docToDeck(
+      doc([
+        { id: "a", type: "heading", data: { level: 1, text: "Intro" } },
+        { id: "b", type: "paragraph", data: { text: "hello" } },
+      ])
+    );
+    expect(deck).toContain("<section class='slide'>");
+    expect(deck).toContain("class='deck-ui'");
+    expect(deck).toContain("katex");
+    expect(deck).toContain("mermaid");
   });
 });
 

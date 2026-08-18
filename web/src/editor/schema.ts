@@ -1,28 +1,29 @@
 import {
   CustomBlockNoteSchema,
   defaultBlockSpecs,
-  defaultInlineContentSpecs,
   defaultStyleSpecs,
   type Block,
   type BlockSchemaFromSpecs,
-  type DefaultInlineContentSchema,
-  type DefaultStyleSchema,
+  type InlineContentSchemaFromSpecs,
   type PartialBlock,
+  type StyleSchemaFromSpecs,
 } from "@blocknote/core";
-import { calloutBlock, chartBlock } from "./blocks";
+import { calloutBlock, chartBlock, mathBlock, mermaidBlock } from "./blocks";
+import { inlineContentSpecs } from "./inline";
 
 export const blockSpecs = {
   ...defaultBlockSpecs,
   chart: chartBlock(),
   callout: calloutBlock(),
+  math: mathBlock(),
+  mermaid: mermaidBlock(),
 };
 
-export const inlineContentSpecs = defaultInlineContentSpecs;
 export const styleSpecs = defaultStyleSpecs;
 
 export type BSchema = BlockSchemaFromSpecs<typeof blockSpecs>;
-export type Inline = DefaultInlineContentSchema;
-export type Style = DefaultStyleSchema;
+export type Inline = InlineContentSchemaFromSpecs<typeof inlineContentSpecs>;
+export type Style = StyleSchemaFromSpecs<typeof styleSpecs>;
 
 export const schema = new CustomBlockNoteSchema<BSchema, Inline, Style>({
   blockSpecs,

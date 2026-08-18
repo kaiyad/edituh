@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CommandMenu } from "./components/CommandMenu";
+import { GraphView } from "./components/GraphView";
 import { Header } from "./components/Header";
+import { LinksPanel } from "./components/LinksPanel";
 import { OutlinePanel } from "./components/OutlinePanel";
+import { PresentView } from "./components/PresentView";
+import { CAPTURE_TODAY, QuickCapture } from "./components/QuickCapture";
 import { Sidebar } from "./components/Sidebar";
 import { EdituhEditor, type EditorHandle } from "./editor/EdituhEditor";
+import { OPEN_DOC_EVENT } from "./editor/inline";
 import { api, loadLocalActive, loadLocalDocs, loadLocalSettings, persistLocalActive, persistLocalDocs, persistLocalSettings, type LocalDoc } from "./lib/api";
+import { findDocByTitle, findTodayDoc, todayTitle } from "./lib/daily";
 import { useToast } from "./lib/toast";
 import { FONT_CSS, THEMES } from "./lib/theme";
 import type { DocJson, Settings, ThemeName } from "./lib/types";
@@ -16,19 +22,22 @@ const WELCOME_DOC: DocJson = {
   title: "Welcome to Edituh",
   blocks: [
     { id: "b1", type: "heading", data: { level: 1, text: "Welcome to **Edituh** 👋" } },
-    { id: "b2", type: "paragraph", data: { text: "A beautiful documentation workspace. Type `/` anywhere to add blocks — text, tables, code, charts, images, video, audio, checklists, callouts and more." } },
-    { id: "b3", type: "callout", data: { icon: "💡", text: "Try the **command menu** with `⌘K` (Ctrl+K) to jump between pages, switch themes and export documents." } },
+    { id: "b2", type: "paragraph", data: { text: "A beautiful documentation workspace. Type `/` anywhere to add blocks — text, tables, code, charts, **math**, **diagrams**, images, checklists, callouts and more." } },
+    { id: "b3", type: "callout", data: { icon: "💡", text: "**Link pages** with `[[Page name]]` — try `[[Daily notes]]` or `[[Presentation mode]]` — then open the **knowledge graph** from the header." } },
     { id: "b4", type: "heading", data: { level: 2, text: "Quick tour" } },
-    { id: "b5", type: "checklist", data: { items: [[false, "Create pages from the sidebar or with **⌘N**"], [false, "Drag & drop images, or paste a video URL"], [false, "Add charts and tables to bring your data to life"], [false, "Export any page as Markdown, HTML or JSON"], [false, "Install Edituh as a **native-feeling app** (macOS / iOS) from the sidebar"]] } },
-    { id: "b6", type: "heading", data: { level: 2, text: "A sample table" } },
-    { id: "b7", type: "table", data: { headers: ["Feature", "Confluence", "Notion", "Edituh"], rows: [["Themes", "✅", "✅", "✅ 6 handcrafted"], ["Charts", "Add-on", "External", "Built-in"], ["Offline first", "—", "—", "✅"], ["Installable app", "—", "✅", "✅ macOS · iOS · Web"]] } },
-    { id: "b8", type: "heading", data: { level: 2, text: "Charts" } },
-    { id: "b9", type: "chart", data: { kind: "bar", title: "Monthly usage", labels: ["Jan", "Feb", "Mar", "Apr"], series: { "Pages": [12, 19, 24, 31], "Media": [4, 8, 9, 14] } } },
-    { id: "b10", type: "heading", data: { level: 2, text: "Quotes & code" } },
-    { id: "b11", type: "quote", data: { text: "The best documentation is the one people actually read — make it beautiful." } },
-    { id: "b12", type: "code", data: { language: "python", text: "def hello():\n    print(\"Hello, Edituh!\")" } },
-    { id: "b13", type: "divider", data: {} },
-    { id: "b14", type: "paragraph", data: { text: "Enjoy exploring. Delete this page anytime — your next one is a keystroke away." } },
+    { id: "b5", type: "checklist", data: { items: [[false, "Create pages from the sidebar or with **⌘N** — press **⌘⇧N** for quick capture into today's note"], [false, "Drag & drop images and files, or paste an image right into quick capture"], [false, "Add charts, **LaTeX math** and **Mermaid diagrams** to bring data to life"], [false, "Link pages with [[wikilinks]] and explore the knowledge graph"], [false, "Present any page as slides from its headings"], [false, "Export as Markdown, HTML, JSON or a standalone deck"]] } },
+    { id: "b6", type: "heading", data: { level: 2, text: "Math & diagrams" } },
+    { id: "b7", type: "math", data: { latex: "E = mc^2" } },
+    { id: "b8", type: "mermaid", data: { code: "flowchart TD\n  A[Ideas] --> B[Daily notes]\n  B --> C[Knowledge graph]\n  C --> D[Presentations]" } },
+    { id: "b9", type: "heading", data: { level: 2, text: "A sample table" } },
+    { id: "b10", type: "table", data: { headers: ["Feature", "Confluence", "Notion", "Edituh"], rows: [["Themes", "✅", "✅", "✅ 6 handcrafted"], ["Charts", "Add-on", "External", "Built-in"], ["Math + diagrams", "—", "External", "✅ KaTeX + Mermaid"], ["Knowledge graph", "—", "—", "✅"], ["Presentations", "—", "—", "✅ From headings"]] } },
+    { id: "b11", type: "heading", data: { level: 2, text: "Charts" } },
+    { id: "b12", type: "chart", data: { kind: "bar", title: "Monthly usage", labels: ["Jan", "Feb", "Mar", "Apr"], series: { "Pages": [12, 19, 24, 31], "Media": [4, 8, 9, 14] } } },
+    { id: "b13", type: "heading", data: { level: 2, text: "Quotes & code" } },
+    { id: "b14", type: "quote", data: { text: "The best documentation is the one people actually read — make it beautiful." } },
+    { id: "b15", type: "code", data: { language: "python", text: "def hello():\n    print(\"Hello, Edituh!\")" } },
+    { id: "b16", type: "divider", data: {} },
+    { id: "b17", type: "paragraph", data: { text: "Enjoy exploring. Delete this page anytime — your next one is a keystroke away." } },
   ],
 };
 
@@ -53,6 +62,10 @@ export function App() {
   const [dirty, setDirty] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [outlineOpen, setOutlineOpen] = useState(false);
+  const [linksOpen, setLinksOpen] = useState(false);
+  const [graphOpen, setGraphOpen] = useState(false);
+  const [captureOpen, setCaptureOpen] = useState(false);
+  const [presentOpen, setPresentOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [canInstall, setCanInstall] = useState(false);
   const installEventRef = useRef<BeforeInstallPromptEvent | null>(null);
@@ -62,12 +75,17 @@ export function App() {
 
   const docsRef = useRef<LocalDoc[]>([]);
   const activeIdRef = useRef<string | null>(null);
+  const onlineRef = useRef(true);
   const pendingSavesRef = useRef<Map<string, LocalDoc>>(new Map());
   const inFlightRef = useRef<Set<string>>(new Set());
   const flushTimerRef = useRef<number | null>(null);
   const localTimerRef = useRef<number | null>(null);
 
   const active = useMemo(() => docs.find((d) => d.id === activeId) ?? null, [docs, activeId]);
+
+  useEffect(() => {
+    onlineRef.current = online;
+  }, [online]);
 
   const commitDocs = useCallback((next: LocalDoc[]) => {
     docsRef.current = next;
@@ -128,7 +146,7 @@ export function App() {
 
   const schedulePersist = useCallback(
     (next: LocalDoc[]) => {
-      docsRef.current = next;
+      commitDocs(next);
       pendingSavesRef.current = new Map();
       for (const entry of next) {
         if (!entry.id.startsWith("local-")) pendingSavesRef.current.set(entry.id, entry);
@@ -139,7 +157,7 @@ export function App() {
       if (flushTimerRef.current) window.clearTimeout(flushTimerRef.current);
       flushTimerRef.current = window.setTimeout(flushRemote, SAVE_DEBOUNCE_MS);
     },
-    [flushRemote, persistLocalSoon]
+    [commitDocs, flushRemote, persistLocalSoon]
   );
 
   // Flush pending writes when the tab closes.
@@ -325,6 +343,105 @@ export function App() {
     [createLocal]
   );
 
+  const openTodayNote = useCallback(() => {
+    const existing = findTodayDoc(docsRef.current);
+    if (existing) {
+      commitActive(existing.id);
+      return;
+    }
+    const doc: DocJson = {
+      title: todayTitle(),
+      blocks: [
+        { id: uuid(), type: "heading", data: { level: 1, text: todayTitle() } },
+        { id: uuid(), type: "paragraph", data: { text: "" } },
+      ],
+    };
+    if (docsRef.current.length === 0 || onlineRef.current) {
+      api
+        .createDoc(doc.title)
+        .then(({ id }) => createLocalWithId(doc, id))
+        .catch(() => createLocal(doc));
+    } else {
+      createLocal(doc);
+    }
+  }, [commitActive, createLocal, createLocalWithId]);
+
+  const openByTitle = useCallback(
+    (title: string) => {
+      const existing = findDocByTitle(docsRef.current, title);
+      if (existing) {
+        commitActive(existing.id);
+        return;
+      }
+      const doc: DocJson = {
+        title: title.trim() || "Untitled",
+        blocks: [{ id: uuid(), type: "paragraph", data: { text: "" } }],
+      };
+      if (onlineRef.current) {
+        api
+          .createDoc(doc.title)
+          .then(({ id }) => createLocalWithId(doc, id))
+          .catch(() => createLocal(doc));
+      } else {
+        createLocal(doc);
+      }
+      toast("info", `Created “${title}”`);
+    },
+    [commitActive, createLocal, createLocalWithId, toast]
+  );
+
+  const handleCapture = useCallback(
+    (targetId: string, text: string, attachments: { name: string; kind: string; url: string; size: number }[]) => {
+      const append = (id: string, doc: DocJson) => {
+        const blocks = [...doc.blocks];
+        if (text) {
+          blocks.push({ id: uuid(), type: "paragraph", data: { text } });
+        }
+        for (const a of attachments) {
+          blocks.push({
+            id: uuid(),
+            type: a.kind === "image" ? "image" : "file",
+            data: a.kind === "image" ? { src: a.url, caption: "" } : { src: a.url, name: a.name, size: a.size },
+          });
+        }
+        updateDoc(id, { ...doc, blocks });
+      };
+
+      const target = targetId === CAPTURE_TODAY ? findTodayDoc(docsRef.current)?.id ?? null : targetId;
+      if (target) {
+        const doc = docsRef.current.find((d) => d.id === target)?.doc;
+        if (doc) {
+          append(target, doc);
+          commitActive(target);
+          return;
+        }
+      }
+      const doc: DocJson = {
+        title: todayTitle(),
+        blocks: [
+          { id: uuid(), type: "heading", data: { level: 1, text: todayTitle() } },
+          { id: uuid(), type: "paragraph", data: { text: "" } },
+        ],
+      };
+      if (onlineRef.current) {
+        api
+          .createDoc(doc.title)
+          .then(({ id }) => {
+            createLocalWithId(doc, id);
+            append(id, doc);
+          })
+          .catch(() => {
+            const id = createLocal(doc);
+            append(id, doc);
+          });
+      } else {
+        const id = createLocal(doc);
+        append(id, doc);
+      }
+    },
+    [commitActive, createLocal, createLocalWithId, updateDoc]
+  );
+
   const importDoc = useCallback(
     (doc: DocJson) => {
       const imported = { ...doc, title: doc.title || "Imported page" };
@@ -341,7 +458,7 @@ export function App() {
   );
 
   const exportDoc = useCallback(
-    (format: "markdown" | "html" | "json") => {
+    (format: "markdown" | "html" | "json" | "deck") => {
       const current = activeIdRef.current;
       const currentDoc = docsRef.current.find((d) => d.id === current);
       if (!currentDoc) return;
@@ -387,6 +504,7 @@ export function App() {
   useEffect(() => {
     const t = THEMES[settings.theme];
     const root = document.documentElement;
+    root.dataset.theme = settings.theme;
     for (const [key, value] of Object.entries(t.vars)) {
       root.style.setProperty(key, value);
     }
@@ -404,6 +522,9 @@ export function App() {
       if (key === "k") {
         e.preventDefault();
         setCommandOpen((v) => !v);
+      } else if (key === "n" && e.shiftKey) {
+        e.preventDefault();
+        setCaptureOpen(true);
       } else if (key === "n") {
         e.preventDefault();
         createPage();
@@ -412,6 +533,36 @@ export function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [createPage]);
+
+  // ---------- wikilink navigation ----------
+  useEffect(() => {
+    const onOpenDoc = (e: Event) => {
+      const target = (e as CustomEvent).detail as string;
+      if (typeof target === "string" && target) openByTitle(target);
+    };
+    window.addEventListener(OPEN_DOC_EVENT, onOpenDoc);
+    return () => window.removeEventListener(OPEN_DOC_EVENT, onOpenDoc);
+  }, [openByTitle]);
+
+  // ---------- deep links (#/doc/<title>, #/capture) ----------
+  const hashAppliedRef = useRef(false);
+  const applyHash = useCallback(() => {
+    if (hashAppliedRef.current) return;
+    const hash = window.location.hash;
+    if (!hash || !hash.startsWith("#/")) return;
+    hashAppliedRef.current = true;
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    if (hash.startsWith("#/doc/")) {
+      const title = decodeURIComponent(hash.slice(6));
+      if (title) openByTitle(title);
+    } else if (hash === "#/capture") {
+      setCaptureOpen(true);
+    }
+  }, [openByTitle]);
+
+  useEffect(() => {
+    if (!hashAppliedRef.current && docsRef.current.length > 0) applyHash();
+  }, [docs, applyHash]);
 
   // ---------- PWA install ----------
   useEffect(() => {
@@ -460,6 +611,7 @@ export function App() {
           setCommandOpen(false);
         }}
         onNew={createPage}
+        onToday={openTodayNote}
         onDelete={deletePage}
         onDuplicate={duplicatePage}
         onTheme={setTheme}
@@ -475,15 +627,53 @@ export function App() {
           saving={saving}
           online={online}
           outlineOpen={outlineOpen}
+          linksOpen={linksOpen}
+          canPresent={Boolean(active)}
           onTitle={handleTitle}
           onToggleOutline={() => setOutlineOpen((v) => !v)}
+          onToggleLinks={() => setLinksOpen((v) => !v)}
           onExport={exportDoc}
           onImportClick={() => fileInputRef.current?.click()}
           onCommandMenu={() => setCommandOpen(true)}
+          onPresent={() => setPresentOpen(true)}
+          onGraph={() => setGraphOpen(true)}
         />
 
         <div className="workspace">
-          <div className="editor-scroll" style={settings.density === "compact" ? { paddingTop: 18 } : undefined}>
+          <div
+            className="editor-scroll"
+            style={settings.density === "compact" ? { paddingTop: 18 } : undefined}
+            onDragOver={(e) => {
+              const files = e.dataTransfer?.files;
+              if (files && files.length > 0 && [...files].some((f) => !f.type.startsWith("image/"))) {
+                e.preventDefault();
+              }
+            }}
+            onDrop={(e) => {
+              const files = [...(e.dataTransfer?.files ?? [])];
+              const nonImages = files.filter((f) => !f.type.startsWith("image/"));
+              if (nonImages.length === 0) return;
+              e.preventDefault();
+              const current = activeIdRef.current;
+              const currentDoc = docsRef.current.find((d) => d.id === current);
+              if (!current || !currentDoc) return;
+              void (async () => {
+                const added: DocJson["blocks"] = [];
+                for (const file of nonImages) {
+                  try {
+                    const url = await api.uploadMedia(file);
+                    added.push({ id: uuid(), type: "file", data: { src: url, name: file.name, size: file.size } });
+                  } catch {
+                    toast("error", `Upload failed for ${file.name}`);
+                  }
+                }
+                if (added.length > 0) {
+                  updateDoc(current, { ...currentDoc.doc, blocks: [...currentDoc.doc.blocks, ...added] });
+                  toast("success", `Attached ${added.length} file${added.length > 1 ? "s" : ""}`);
+                }
+              })();
+            }}
+          >
             {active ? (
               <div className="editor-shell">
                 <EdituhEditor
@@ -511,6 +701,14 @@ export function App() {
           {outlineOpen && active && (
             <OutlinePanel doc={active.doc} onJump={jumpToBlock} onClose={() => setOutlineOpen(false)} />
           )}
+          {linksOpen && active && (
+            <LinksPanel
+              docs={docs.map((d) => ({ id: d.id, doc: d.doc }))}
+              docId={active.id}
+              onOpenById={(id) => commitActive(id)}
+              onOpenByTitle={openByTitle}
+            />
+          )}
         </div>
       </div>
 
@@ -520,17 +718,47 @@ export function App() {
         docs={docs.map((d) => ({ id: d.id, title: d.doc.title }))}
         theme={theme}
         activeId={activeId}
+        todayDocId={findTodayDoc(docs)?.id ?? null}
         onNew={createPage}
         onSelectDoc={(id) => {
           commitActive(id);
         }}
+        onToday={openTodayNote}
+        onCapture={() => setCaptureOpen(true)}
+        onGraph={() => setGraphOpen(true)}
+        onPresent={() => setPresentOpen(true)}
         onTheme={setTheme}
         onExport={exportDoc}
         onImport={() => fileInputRef.current?.click()}
         onToggleOutline={() => setOutlineOpen((v) => !v)}
+        onToggleLinks={() => setLinksOpen((v) => !v)}
         onToggleSidebar={() => setSidebarCollapsed((v) => !v)}
         onQuickTheme={quickTheme}
       />
+
+      {graphOpen && (
+        <GraphView
+          docs={docs.map((d) => ({ id: d.id, doc: d.doc }))}
+          activeId={activeId}
+          onOpenDoc={(id) => {
+            commitActive(id);
+            setGraphOpen(false);
+          }}
+          onClose={() => setGraphOpen(false)}
+        />
+      )}
+
+      {captureOpen && (
+        <QuickCapture
+          open={captureOpen}
+          docs={docs.map((d) => ({ id: d.id, doc: d.doc }))}
+          todayDocId={findTodayDoc(docs)?.id ?? null}
+          onCapture={handleCapture}
+          onClose={() => setCaptureOpen(false)}
+        />
+      )}
+
+      {presentOpen && active && <PresentView doc={active.doc} onClose={() => setPresentOpen(false)} />}
 
       <input
         ref={fileInputRef}

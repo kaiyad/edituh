@@ -23,9 +23,34 @@ describe("inline markdown round-trip", () => {
     expect(parseInlineText("Just text with 1-2-3 and dots...")).toBe("Just text with 1-2-3 and dots...");
   });
 
+  it("preserves wikilinks with and without alias", () => {
+    expect(parseInlineText("See [[Project Alpha]] and [[Beta|the beta page]]")).toBe(
+      "See [[Project Alpha]] and [[Beta|the beta page]]"
+    );
+  });
+
+  it("preserves inline math", () => {
+    expect(parseInlineText("Solve $x^2 + y^2 = z^2$ today")).toBe("Solve $x^2 + y^2 = z^2$ today");
+  });
+
   it("tolerates punctuation around tokens", () => {
     const source = "Hello, **world**! (yes)";
     expect(parseInlineText(source)).toBe(source);
+  });
+
+  it("keeps math and mermaid blocks through the round-trip", () => {
+    const doc: DocJson = {
+      title: "T",
+      blocks: [
+        { id: "m1", type: "math", data: { latex: "\\int_0^1 x^2 dx" } },
+        { id: "d1", type: "mermaid", data: { code: "flowchart TD\nA --> B" } },
+        { id: "f1", type: "file", data: { name: "plan.pdf", src: "media/plan.pdf", size: 2048 } },
+      ],
+    };
+    const converted = blocksToDoc(docToBlocks(doc) as never);
+    expect(converted.blocks[0]).toEqual({ id: "m1", type: "math", data: { latex: "\\int_0^1 x^2 dx" } });
+    expect(converted.blocks[1]).toEqual({ id: "d1", type: "mermaid", data: { code: "flowchart TD\nA --> B" } });
+    expect(converted.blocks[2]).toEqual({ id: "f1", type: "file", data: { name: "plan.pdf", src: "media/plan.pdf", size: 2048 } });
   });
 });
 

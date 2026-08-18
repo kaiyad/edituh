@@ -39,6 +39,55 @@ def test_render_markdown_escapes_html():
     assert "&lt;script&gt;" in html_text
 
 
+def test_render_markdown_wikilinks_and_math():
+    html_text = render_markdown("See [[Project Alpha|the project]] and $x^2$.\n\n$$E = mc^2$$")
+    assert '<a class="wikilink" href="#/doc/Project Alpha">the project</a>' in html_text
+    assert 'class="math-inline"' in html_text
+    assert '<p class="math-block">$$E = mc^2$$</p>' in html_text
+
+
+def test_render_markdown_mermaid():
+    html_text = render_markdown("```mermaid\nflowchart TD\n  A --> B\n```")
+    assert "<pre class='mermaid'>" in html_text
+    assert "A --&gt; B" in html_text
+    assert "language-mermaid" not in html_text
+
+
+def test_parse_markdown_math_mermaid_file():
+    doc = parse_markdown("$$\\int_0^1 x dx$$\n\n```mermaid\nsequenceDiagram\nA->>B: hi\n```")
+    assert doc.blocks[0].type == "math"
+    assert doc.blocks[0].data["latex"] == "\\int_0^1 x dx"
+    assert doc.blocks[1].type == "mermaid"
+    assert doc.blocks[1].data["code"] == "sequenceDiagram\nA->>B: hi"
+
+
+def test_math_mermaid_roundtrip():
+    doc = Document("Math")
+    doc.add_block("math", {"latex": "E = mc^2"})
+    doc.add_block("mermaid", {"code": "flowchart TD\nA --> B"})
+    doc.add_block("file", {"name": "plan.pdf", "src": "media/plan.pdf", "size": 42})
+    markdown = doc.to_markdown()
+    assert "$$E = mc^2$$" in markdown
+    assert "```mermaid" in markdown
+    assert '"type": "file"' in markdown
+    restored = parse_markdown(markdown)
+    assert [b.type for b in restored.blocks] == ["math", "mermaid", "file"]
+    assert restored.blocks[0].data == {"latex": "E = mc^2"}
+    assert restored.blocks[1].data == {"code": "flowchart TD\nA --> B"}
+    assert restored.blocks[2].data == {"name": "plan.pdf", "src": "media/plan.pdf", "size": 42}
+
+
+def test_to_html_includes_math_and_mermaid_cdn():
+    doc = Document("Export")
+    doc.add_block("math", {"latex": "x^2"})
+    doc.add_block("mermaid", {"code": "flowchart TD\nA --> B"})
+    html_text = doc.to_html()
+    assert "katex@0.16.11" in html_text
+    assert "mermaid@11" in html_text
+    assert '<p class="math-block">$$x^2$$</p>' in html_text
+    assert '<pre class="mermaid">flowchart TD\nA --&gt; B</pre>' in html_text
+
+
 def test_parse_markdown_roundtrip():
     source = (
         "# Heading\n\n"

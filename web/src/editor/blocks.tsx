@@ -1,7 +1,19 @@
 import { createReactBlockSpec } from "@blocknote/react";
+import katex from "katex";
+import mermaid from "mermaid";
 import { useEffect, useState } from "react";
-import { BulbIcon, ChartIcon, EditIcon } from "../lib/icons";
+import { BulbIcon, ChartIcon, EditIcon, MermaidIcon, SigmaIcon } from "../lib/icons";
 import { ChartSvg, chartToCsv, parseChartData, type ChartData } from "../lib/chart";
+
+import "katex/dist/katex.min.css";
+
+mermaid.initialize({ startOnLoad: false, securityLevel: "loose", theme: "base" });
+
+function mermaidTheme(): "dark" | "default" {
+  const theme = document.documentElement.dataset.theme;
+  const dark = theme === "midnight" || theme === "nord" || theme === "forest" || theme === "ocean";
+  return dark ? "dark" : "default";
+}
 
 const CHART_KINDS = ["bar", "line", "area", "scatter"] as const;
 
@@ -13,6 +25,175 @@ function parseJson<T>(raw: string | undefined, fallback: T): T {
     return fallback;
   }
 }
+
+function mathHtml(latex: string): string {
+  try {
+    return katex.renderToString(latex, { throwOnError: false, displayMode: true });
+  } catch {
+    return latex;
+  }
+}
+
+export const mathBlock = createReactBlockSpec(
+  {
+    type: "math",
+    propSchema: {
+      latex: { default: "" },
+    },
+    content: "none",
+  },
+  {
+    render: ({ block, editor }) => {
+      const [editing, setEditing] = useState(false);
+      const [draft, setDraft] = useState("");
+      const props = (block.props ?? {}) as { latex?: string };
+      const latex = props.latex ?? "";
+
+      useEffect(() => {
+        if (editing) setDraft(latex);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [editing]);
+
+      return (
+        <div className="math-card" onClick={() => !latex && setEditing(true)}>
+          <div className="math-head">
+            <SigmaIcon size={14} />
+            <span className="math-label">LaTeX</span>
+            <button
+              className="icon-btn chart-edit"
+              onClick={() => setEditing((v) => !v)}
+              title={editing ? "Done editing" : "Edit LaTeX"}
+            >
+              {editing ? <span className="chart-done">Done</span> : <EditIcon size={14} />}
+            </button>
+          </div>
+          {editing ? (
+            <textarea
+              className="math-input"
+              rows={3}
+              value={draft}
+              placeholder="e.g. E = mc^2"
+              autoFocus
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={() => {
+                setEditing(false);
+                editor.updateBlock(block, { props: { latex: draft } });
+              }}
+            />
+          ) : latex ? (
+            <div
+              className="math-output"
+              dangerouslySetInnerHTML={{ __html: mathHtml(latex) }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditing(true);
+              }}
+            />
+          ) : (
+            <div className="chart-empty">
+              <SigmaIcon size={22} />
+              <span>Add math (LaTeX)</span>
+            </div>
+          )}
+        </div>
+      );
+    },
+  }
+);
+
+let mermaidSeq = 0;
+
+export const mermaidBlock = createReactBlockSpec(
+  {
+    type: "mermaid",
+    propSchema: {
+      code: { default: "" },
+    },
+    content: "none",
+  },
+  {
+    render: ({ block, editor }) => {
+      const [editing, setEditing] = useState(false);
+      const [draft, setDraft] = useState("");
+      const [svg, setSvg] = useState("");
+      const [error, setError] = useState("");
+      const props = (block.props ?? {}) as { code?: string };
+      const code = props.code ?? "";
+
+      useEffect(() => {
+        let cancelled = false;
+        if (!code) {
+          setSvg("");
+          setError("");
+          return;
+        }
+        const id = `edituh-mermaid-${++mermaidSeq}`;
+        mermaid.initialize({ startOnLoad: false, securityLevel: "loose", theme: mermaidTheme() });
+        mermaid
+          .render(id, code)
+          .then(({ svg: rendered }) => {
+            if (!cancelled) {
+              setSvg(rendered);
+              setError("");
+            }
+          })
+          .catch((err: unknown) => {
+            if (!cancelled) setError(err instanceof Error ? err.message : "Invalid diagram");
+          });
+        return () => {
+          cancelled = true;
+        };
+      }, [code]);
+
+      useEffect(() => {
+        if (editing) setDraft(code);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [editing]);
+
+      return (
+        <div className="mermaid-card" onClick={() => !code && setEditing(true)}>
+          <div className="mermaid-head">
+            <MermaidIcon size={14} />
+            <span className="math-label">Diagram</span>
+            <button
+              className="icon-btn chart-edit"
+              onClick={() => setEditing((v) => !v)}
+              title={editing ? "Done editing" : "Edit diagram"}
+            >
+              {editing ? <span className="chart-done">Done</span> : <EditIcon size={14} />}
+            </button>
+          </div>
+          {editing ? (
+            <textarea
+              className="mermaid-input"
+              rows={5}
+              value={draft}
+              placeholder={"flowchart TD\n  A[Start] --> B{Decision}\n  B -->|Yes| C[Done]"}
+              autoFocus
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={() => {
+                setEditing(false);
+                editor.updateBlock(block, { props: { code: draft } });
+              }}
+            />
+          ) : error ? (
+            <div className="mermaid-error" onClick={(e) => e.stopPropagation()}>
+              <span>Diagram error</span>
+              <code>{error}</code>
+            </div>
+          ) : svg ? (
+            <div className="mermaid-output" dangerouslySetInnerHTML={{ __html: svg }} />
+          ) : (
+            <div className="chart-empty">
+              <MermaidIcon size={22} />
+              <span>Add a diagram (Mermaid)</span>
+            </div>
+          )}
+        </div>
+      );
+    },
+  }
+);
 
 export const chartBlock = createReactBlockSpec(
   {
@@ -149,4 +330,6 @@ export const calloutBlock = createReactBlockSpec(
 export const BLOCK_ICONS: Record<string, React.FC<{ size?: number }>> = {
   chart: ChartIcon,
   callout: BulbIcon,
+  math: SigmaIcon,
+  mermaid: MermaidIcon,
 };

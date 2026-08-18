@@ -1,0 +1,752 @@
+/* ============================================================
+   Edituh — knowledge features: wikilinks, math, mermaid,
+   backlinks, graph, quick capture, presentation
+   ============================================================ */
+
+/* ---------- wikilinks & inline math in the editor ---------- */
+
+.bn-wikilink {
+  color: var(--accent-2);
+  border-bottom: 1px dashed var(--accent);
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.bn-wikilink:hover {
+  background: var(--accent-soft);
+}
+
+.bn-wikilink-alias {
+  outline: none;
+  cursor: text;
+}
+
+.bn-wikilink-alias:focus {
+  border-radius: 3px;
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.bn-math-inline {
+  font-size: 1.05em;
+  padding: 0 2px;
+}
+
+a.wikilink {
+  color: var(--accent-2, #0969da);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--accent, #0969da);
+}
+
+/* ---------- math & mermaid blocks ---------- */
+
+.math-card,
+.mermaid-card {
+  margin: 6px 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.math-head,
+.mermaid-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-3);
+}
+
+.math-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  flex: 1;
+}
+
+.math-output {
+  padding: 18px 20px;
+  overflow-x: auto;
+  text-align: center;
+  font-size: 1.05em;
+  cursor: text;
+}
+
+.math-output .katex-display {
+  margin: 0;
+}
+
+.math-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: vertical;
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 12px 14px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.mermaid-output {
+  padding: 16px;
+  overflow-x: auto;
+  display: flex;
+  justify-content: center;
+}
+
+.mermaid-output svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.mermaid-error {
+  padding: 14px 18px;
+  color: var(--danger);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mermaid-error code {
+  font-size: 11.5px;
+  white-space: pre-wrap;
+  color: var(--text-2);
+}
+
+/* ---------- links panel (backlinks) ---------- */
+
+.links-panel {
+  width: 260px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  overflow-y: auto;
+  padding: 14px;
+  animation: fade-in 0.15s ease;
+}
+
+.links-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  color: var(--text-3);
+  padding: 28px 8px;
+}
+
+.links-empty p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.links-empty span {
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.links-empty code {
+  background: var(--surface-2);
+  border-radius: 5px;
+  padding: 1px 5px;
+  font-size: 11.5px;
+}
+
+.links-section {
+  margin-bottom: 18px;
+}
+
+.links-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 8px;
+}
+
+.links-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.links-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+}
+
+.links-item:hover {
+  background: var(--accent-soft);
+}
+
+.links-item span:first-child {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.links-item.unresolved span:first-child {
+  color: var(--text-2);
+  text-decoration: line-through;
+  text-decoration-color: var(--text-3);
+  text-decoration-thickness: 1px;
+}
+
+.links-check {
+  color: var(--accent-2);
+  font-size: 12px;
+}
+
+.links-missing {
+  font-size: 10.5px;
+  color: var(--text-3);
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+
+.links-count {
+  font-size: 11px;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 1px 7px;
+}
+
+/* ---------- knowledge graph ---------- */
+
+.graph-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--overlay);
+  backdrop-filter: blur(6px);
+  animation: fade-in 0.15s ease;
+}
+
+.graph-panel {
+  width: min(960px, calc(100vw - 48px));
+  border-radius: 16px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  animation: menu-in 0.15s ease;
+}
+
+.graph-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.graph-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.graph-count {
+  color: var(--text-3);
+  font-weight: 500;
+  font-size: 12px;
+  margin-left: 6px;
+}
+
+.graph-legend {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.graph-legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+
+.graph-legend-dot.daily {
+  background: var(--mark);
+}
+
+.graph-svg {
+  display: block;
+  width: 100%;
+  height: min(62vh, 620px);
+}
+
+.graph-edge {
+  stroke: var(--border-strong);
+  stroke-width: 1.3;
+  opacity: 0.75;
+}
+
+.graph-arrow-head {
+  fill: var(--border-strong);
+}
+
+.graph-edge.dimmed {
+  opacity: 0.08;
+}
+
+.graph-node.dimmed .graph-node-circle {
+  opacity: 0.15;
+}
+
+.graph-node-circle {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+  stroke-width: 1.8;
+  transition: filter 0.15s ease;
+}
+
+.graph-node.daily .graph-node-circle {
+  fill: var(--mark);
+  stroke: var(--mark);
+  stroke-width: 1.8;
+  filter: none;
+}
+
+.graph-node.active .graph-node-circle {
+  stroke: var(--accent-2);
+  stroke-width: 3;
+}
+
+.graph-node:hover .graph-node-circle {
+  filter: brightness(1.25);
+}
+
+.graph-node-label {
+  fill: var(--text-2);
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.graph-foot {
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  color: var(--text-3);
+  font-size: 11.5px;
+}
+
+.graph-empty {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-2);
+}
+
+.graph-empty code {
+  background: var(--surface-2);
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+
+/* ---------- quick capture ---------- */
+
+.capture-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 14vh;
+  background: var(--overlay);
+  backdrop-filter: blur(6px);
+  animation: fade-in 0.14s ease;
+}
+
+.capture-dialog {
+  width: min(540px, calc(100vw - 32px));
+  border-radius: 16px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  animation: menu-in 0.15s ease;
+}
+
+.capture-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.capture-title {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.capture-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: vertical;
+  background: transparent;
+  color: var(--text);
+  padding: 14px 16px;
+  font-size: 14px;
+  line-height: 1.55;
+  min-height: 84px;
+}
+
+.capture-input::placeholder {
+  color: var(--text-3);
+}
+
+.capture-attachments {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 16px 10px;
+}
+
+.capture-attachment {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.capture-attachment-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capture-targets {
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.capture-targets-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 4px;
+}
+
+.capture-target {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+}
+
+.capture-target:hover {
+  background: var(--surface-2);
+}
+
+.capture-target.active {
+  background: var(--accent-soft);
+  color: var(--accent-2);
+}
+
+.capture-target span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capture-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.capture-foot .btn-primary kbd {
+  margin-left: 8px;
+  border: none;
+  background: rgba(255, 255, 255, 0.18);
+  color: inherit;
+}
+
+/* ---------- presentation mode ---------- */
+
+.present-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fade-in 0.18s ease;
+}
+
+.present-stage {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.present-slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 8vh 10vw;
+  overflow-y: auto;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(26px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.present-slide.active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+.present-slide h1 {
+  font-size: clamp(2rem, 5.2vw, 3.6rem);
+  margin: 0 0 0.35em;
+  line-height: 1.15;
+}
+
+.present-slide h2 {
+  font-size: clamp(1.5rem, 3.4vw, 2.3rem);
+  margin: 0 0 0.3em;
+}
+
+.present-slide h3 {
+  font-size: clamp(1.15rem, 2.2vw, 1.5rem);
+}
+
+.present-slide p,
+.present-slide li {
+  font-size: clamp(1.05rem, 2.1vw, 1.45rem);
+  line-height: 1.65;
+}
+
+.present-slide img,
+.present-slide video,
+.present-slide svg {
+  max-width: 100%;
+  max-height: 54vh;
+  border-radius: 12px;
+}
+
+.present-slide pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.1em 1.4em;
+  overflow-x: auto;
+  font-size: 0.95rem;
+}
+
+.present-slide code {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+
+.present-slide blockquote {
+  border-left: 4px solid var(--accent);
+  margin: 0.5em 0;
+  padding: 0.2em 1.1em;
+  color: var(--text-2);
+}
+
+.present-slide table {
+  border-collapse: collapse;
+}
+
+.present-slide th,
+.present-slide td {
+  border: 1px solid var(--border-strong);
+  padding: 0.45em 0.9em;
+  text-align: left;
+  font-size: 1rem;
+}
+
+.present-slide ul,
+.present-slide ol {
+  padding-left: 1.6em;
+}
+
+.present-ui {
+  position: fixed;
+  bottom: 20px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 10;
+}
+
+.present-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-2);
+  transition: background 0.12s ease;
+}
+
+.present-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.present-counter {
+  color: var(--text-2);
+  font-size: 12.5px;
+  margin: 0 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.present-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border-strong);
+  margin: 0 4px;
+}
+
+.present-notes {
+  position: fixed;
+  bottom: 76px;
+  right: 24px;
+  width: min(380px, 44vw);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text-2);
+  z-index: 10;
+}
+
+.present-notes-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 6px;
+}
+
+.present-notes ul {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.present-notes li {
+  margin-bottom: 4px;
+}
+
+.present-notes-empty {
+  margin: 0;
+  color: var(--text-3);
+}
+
+.present-notes-next {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  color: var(--text-3);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.present-progress {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: transparent;
+  z-index: 10;
+}
+
+.present-progress-bar {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
+/* ---------- sidebar today button ---------- */
+
+.today-btn {
+  margin-top: 6px;
+}
+
+.today-btn span {
+  color: var(--accent-2);
+}
+
+/* ---------- math & diagram rendering inside slides/deck ---------- */
+
+.math-inline {
+  font-size: 0.95em;
+}
+
+.math-block {
+  text-align: center;
+  font-size: 1.1rem;
+}
