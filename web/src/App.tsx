@@ -290,7 +290,7 @@ export function App() {
       const current = activeIdRef.current;
       const currentDoc = docsRef.current.find((d) => d.id === current);
       if (!current || !currentDoc) return;
-      const cleaned = title.trim() || "Untitled";
+      const cleaned = title.trim() || "";
       if (cleaned === currentDoc.doc.title) return;
       updateDoc(current, { ...currentDoc.doc, title: cleaned });
     },

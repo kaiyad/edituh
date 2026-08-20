@@ -542,13 +542,16 @@ a.wikilink {
   inset: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   padding: 8vh 10vw;
   overflow-y: auto;
   opacity: 0;
   pointer-events: none;
   transform: translateX(26px);
   transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.present-slide-inner {
+  margin: auto 0;
 }
 
 .present-slide.active {

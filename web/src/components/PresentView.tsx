@@ -1,11 +1,92 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import katex from "katex";
+import mermaid from "mermaid";
 import { blockToHtml, buildSlides } from "../lib/export";
+import { ChartSvg, type ChartData } from "../lib/chart";
 import { ChevronLeftIcon, ChevronRightIcon, PresentIcon, XIcon } from "../lib/icons";
-import type { DocJson } from "../lib/types";
+import type { BlockJson, DocJson } from "../lib/types";
 
 interface Props {
   doc: DocJson;
   onClose: () => void;
+}
+
+const CHART_KINDS = ["bar", "line", "area", "scatter"] as const;
+
+let mermaidSeq = 0;
+
+function mermaidTheme(): "dark" | "default" {
+  const theme = document.documentElement.dataset.theme;
+  const dark = theme === "midnight" || theme === "nord" || theme === "forest" || theme === "ocean";
+  return dark ? "dark" : "default";
+}
+
+function ChartBlock({ block }: { block: BlockJson }) {
+  const data = block.data ?? {};
+  const chart: ChartData = {
+    kind: CHART_KINDS.includes(data.kind as (typeof CHART_KINDS)[number])
+      ? (data.kind as (typeof CHART_KINDS)[number])
+      : "bar",
+    title: data.title ?? "",
+    labels: Array.isArray(data.labels) ? data.labels : [],
+    series:
+      typeof data.series === "object" && data.series !== null && !Array.isArray(data.series)
+        ? (data.series as Record<string, number[]>)
+        : {},
+  };
+  return <ChartSvg data={chart} />;
+}
+
+function MathBlock({ block }: { block: BlockJson }) {
+  const latex = String(block.data?.latex ?? "");
+  const html = useMemo(
+    () => katex.renderToString(latex, { throwOnError: false, displayMode: true }),
+    [latex]
+  );
+  if (!latex) return null;
+  return <div className="math-output" dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+function MermaidBlock({ block }: { block: BlockJson }) {
+  const code = String(block.data?.code ?? "");
+  const [svg, setSvg] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!code) {
+      setSvg("");
+      setError("");
+      return;
+    }
+    const id = `present-mermaid-${++mermaidSeq}`;
+    mermaid.initialize({ startOnLoad: false, securityLevel: "loose", theme: mermaidTheme() });
+    mermaid
+      .render(id, code)
+      .then(({ svg: rendered }) => {
+        if (!cancelled) {
+          setSvg(rendered);
+          setError("");
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Invalid diagram");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [code]);
+
+  if (error) return <pre className="mermaid-error">{error}</pre>;
+  if (!svg) return null;
+  return <div className="mermaid-output" dangerouslySetInnerHTML={{ __html: svg }} />;
+}
+
+function SlideBlock({ block }: { block: BlockJson }) {
+  if (block.type === "chart") return <ChartBlock block={block} />;
+  if (block.type === "math") return <MathBlock block={block} />;
+  if (block.type === "mermaid") return <MermaidBlock block={block} />;
+  return <div dangerouslySetInnerHTML={{ __html: blockToHtml(block) }} />;
 }
 
 export function PresentView({ doc, onClose }: Props) {
@@ -54,9 +135,11 @@ export function PresentView({ doc, onClose }: Props) {
       <div className="present-stage">
         {slides.map((s, i) => (
           <div key={i} className={`present-slide ${i === index ? "active" : ""}`}>
-            {s.blocks.map((block) => (
-              <div key={block.id} dangerouslySetInnerHTML={{ __html: blockToHtml(block) }} />
-            ))}
+            <div className="present-slide-inner">
+              {s.blocks.map((block) => (
+                <SlideBlock key={block.id} block={block} />
+              ))}
+            </div>
           </div>
         ))}
       </div>
